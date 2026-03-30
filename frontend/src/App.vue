@@ -7,7 +7,7 @@
         <div style="font-size:16px; font-weight:700; color:#7dd3fc; line-height:1.3;">
           PV Model Gateway
         </div>
-        <div style="font-size:11px; color:#475569; margin-top:4px;">
+        <div style="font-size:11px; color:#fff; margin-top:4px;">
           光伏模型网关平台
         </div>
       </div>

@@ -1,6 +1,7 @@
 MODEL_META = {
+    "id": 2,
     "name":        "solar_position",
-    "title":       "太阳位置模型",
+    "title":       "太阳位置模型（模型1）",
     "version":     "1.0.0",
     "description": "根据时间和地理坐标，计算太阳高度角、方位角与天顶角",
     "author":      "PV Team",

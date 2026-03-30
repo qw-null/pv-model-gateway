@@ -1,4 +1,5 @@
 MODEL_META = {
+    "id": 3,
     "name": "erbs_model",
     "title": "Erbs 分离模型（模型2）",
     "version": "1.0.0",

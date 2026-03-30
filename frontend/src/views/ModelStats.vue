@@ -54,10 +54,10 @@
             <div class="icon orange"><el-icon><Trophy /></el-icon></div>
             <div>
               <div class="value orange">
-                {{ overview.top_models?.[0]?.title ?? '—' }}
+                Top: {{ overview.top_models?.[0]?.call_count ?? 0 }} 次
               </div>
               <div class="label">
-                Top: {{ overview.top_models?.[0]?.call_count ?? 0 }} 次
+                {{ overview.top_models?.[0]?.title ?? '—' }}
               </div>
             </div>
           </div>

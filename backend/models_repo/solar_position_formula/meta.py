@@ -1,9 +1,11 @@
 MODEL_META = {
+    "id":1,
     "name": "solar_position_formula",
-    "title": "太阳位置模型（公式法）",
+    "title": "太阳位置模型_公式法（模型1）",
     "version": "1.0.0",
     "description": "基于球面天文学公式计算太阳高度角、方位角与天顶角",
     "author": "PV Team",
+    "category":    "太阳位置",
     "inputs": [
         {
             "name": "L",

@@ -73,14 +73,9 @@
             <el-divider />
             <el-descriptions :column="2" size="small">
               <el-descriptions-item label="作者">{{ modelMeta.author || '—' }}</el-descriptions-item>
-              <el-descriptions-item label="版本">{{ modelMeta.version }}</el-descriptions-item>
-              <el-descriptions-item label="标签">
-                <el-tag
-                  v-for="tag in modelMeta.tags"
-                  :key="tag"
-                  size="small"
-                  style="margin-right:4px;"
-                >{{ tag }}</el-tag>
+              <el-descriptions-item label="版本"><el-tag type="success">{{ modelMeta.version }}</el-tag></el-descriptions-item>
+              <el-descriptions-item label="分类">
+               <el-tag>{{ modelMeta.category }}</el-tag>
               </el-descriptions-item>
               <el-descriptions-item label="超时">
                 {{ modelMeta.execution?.timeout ?? 30 }}s

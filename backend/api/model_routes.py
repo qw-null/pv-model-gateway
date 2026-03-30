@@ -457,9 +457,31 @@ def get_model(name: str, db: Session = Depends(get_db)):
     meta = record.meta_json or {}
     related = _get_related_models(record, db)
 
+    # ✅ 读取源码文件
+    model_dir = settings.MODELS_DIR / name
+    meta_code = ""
+    model_code = ""
+
+    try:
+        meta_path = model_dir / "meta.py"
+        if meta_path.exists():
+            meta_code = meta_path.read_text(encoding="utf-8")
+    except Exception:
+        pass
+
+    try:
+        model_path = model_dir / "model.py"
+        if model_path.exists():
+            model_code = model_path.read_text(encoding="utf-8")
+    except Exception:
+        pass
+
     data = _model_to_dict(record, related)
-    data["inputs"] = meta.get("inputs", [])
-    data["outputs"] = meta.get("outputs", [])
-    data["execution"] = meta.get("execution", {})
+    data["inputs"]     = meta.get("inputs", [])
+    data["outputs"]    = meta.get("outputs", [])
+    data["execution"]  = meta.get("execution", {})
+    data["meta_code"]  = meta_code   # ✅ 新增
+    data["model_code"] = model_code  # ✅ 新增
 
     return {"success": True, "data": data}
+
