@@ -1,12 +1,39 @@
 # PV Model Gateway — 光伏模型网关
 
-将光伏 Python 模型自动转化为 RESTful API 服务，支持在线编辑、校验与调试。
+将光伏 Python 模型自动转化为 RESTful API 服务，支持在线编辑、校验、调试与模型关系管理。
 
-## 运行方式：
-Docker 一键启动（推荐）或本地手动启动
+---
 
+## 环境要求
 
-### **方式一：Docker 启动（推荐）**
+| 依赖 | 版本要求 |
+|------|---------|
+| Python | 3.10+ |
+| Node.js | 18+ |
+| MySQL | 8.0+ |
+| Docker（可选） | 20.10+ |
+
+---
+
+## 环境变量配置
+
+在 `backend/` 目录下创建 `.env` 文件：
+
+```env
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_password
+MYSQL_DATABASE=pv_gateway
+```
+
+Docker 模式下在 `docker-compose.yml` 中统一配置，无需单独创建 `.env`。
+
+---
+
+## 运行方式
+
+### 方式一：Docker 启动（推荐）
 
 确保本机已安装 Docker 和 Docker Compose，然后在项目根目录执行：
 
@@ -36,9 +63,21 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### **方式二：本地手动启动**
+---
 
-#### **第一步：启动后端**
+### 方式二：本地手动启动
+
+#### 第一步：准备数据库
+
+确保 MySQL 已启动，并创建数据库：
+
+```sql
+CREATE DATABASE pv_gateway CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+然后在 `backend/` 目录下配置 `.env` 文件（见上方环境变量配置）。
+
+#### 第二步：启动后端
 
 ```bash
 # 进入后端目录
@@ -57,6 +96,7 @@ pip install -r requirements.txt
 
 # 启动服务
 python app.py
+
 # 或使用 uvicorn 直接启动
 uvicorn app:app --host 0.0.0.0 --port 8080 --reload
 ```
@@ -70,10 +110,10 @@ INFO  已加载模型: solar_position (太阳位置模型)
 INFO  已加载模型: irradiance_split (辐照分离模型)
 INFO  已加载模型: pv_conversion (光伏转换模型)
 INFO  已加载模型: reflection (反射损失模型)
-INFO  启动完成，已加载模型: ['solar_position', 'irradiance_split', 'pv_conversion', 'reflection']
+INFO  启动完成
 ```
 
-#### **第二步：启动前端**
+#### 第三步：启动前端
 
 新开一个终端窗口：
 
@@ -90,9 +130,9 @@ npm run dev
 
 前端启动后访问 http://localhost:3000 即可。
 
+---
 
-
-### **验证服务是否正常**
+## 验证服务是否正常
 
 后端启动后，可以用 curl 或 Postman 直接测试任意模型接口：
 
@@ -103,7 +143,7 @@ curl -X POST http://localhost:8080/api/run/solar_position \
   -d '{
     "latitude": 39.9,
     "longitude": 116.4,
-    "datetime": "2024-06-21T12:00:00",
+    "datetime": "2024-06-21T12:00:00+08:00",
     "timezone": "Asia/Shanghai"
   }'
 ```
@@ -127,25 +167,13 @@ curl -X POST http://localhost:8080/api/run/solar_position \
 
 ---
 
-### **常见问题排查**
-
-**端口被占用：** 修改 `docker-compose.yml` 中的端口映射，或本地启动时修改 `app.py` 中的 `port` 参数。
-
-**模型加载失败：** 检查 `backend/models_repo/` 下各模型目录是否同时存在 `meta.py` 和 `model.py`，缺少任意一个该模型会被跳过。
-
-**前端代理不生效：** 本地开发时前端请求通过 `vite.config.js` 中的 proxy 转发到 `localhost:8080`，确保后端已先行启动。Docker 模式下由 nginx 负责转发，无需关心此问题。
-
-**pvlib 安装慢：** 可以使用国内镜像源加速：
-```bash
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-```
-
-
 ## 新增模型（3步）
 
 1. 在前端点击「新增模型」，填写 `meta.py` 和 `model.py`
 2. 点击「校验代码」通过后，点击「发布模型」
 3. API 自动注册，立即可用：`POST /api/run/{model_name}`
+
+---
 
 ## 模型编码规范
 
@@ -153,14 +181,177 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 | 文件 | 职责 |
 |------|------|
-| `meta.py` | 定义 `MODEL_META` 字典，描述输入输出 |
+| `meta.py` | 定义 `MODEL_META` 字典，描述输入输出与模型关系 |
 | `model.py` | 实现 `run(inputs: dict) -> dict` 函数 |
+
+### meta.py 结构示例
+
+```python
+MODEL_META = {
+    "name": "solar_position",
+    "title": "太阳位置模型",
+    "version": "1.0.0",
+    "description": "根据时间和地理坐标，计算太阳高度角、方位角与天顶角",
+    "author": "PV Team",
+    "category": "太阳位置",
+    "inputs": [
+        {
+            "name": "latitude",
+            "type": "float",
+            "required": True,
+            "min": -90.0,
+            "max": 90.0,
+            "description": "纬度 (°)"
+        },
+        {
+            "name": "longitude",
+            "type": "float",
+            "required": True,
+            "min": -180.0,
+            "max": 180.0,
+            "description": "经度 (°)"
+        },
+        {
+            "name": "datetime",
+            "type": "str",
+            "format": "datetime",
+            "required": True,
+            "description": "ISO 格式时间，如 2024-06-21T12:00:00+08:00"
+        },
+        {
+            "name": "timezone",
+            "type": "str",
+            "required": False,
+            "default": "Asia/Shanghai",
+            "description": "时区字符串，如 Asia/Shanghai"
+        }
+    ],
+    "outputs": [
+        {"name": "altitude",   "type": "float", "unit": "°", "description": "太阳高度角"},
+        {"name": "azimuth",    "type": "float", "unit": "°", "description": "太阳方位角"},
+        {"name": "zenith",     "type": "float", "unit": "°", "description": "天顶角"},
+        {"name": "is_daytime", "type": "bool",  "unit": "",  "description": "是否为白天"}
+    ],
+    "tags": ["solar", "position"],
+    "execution": {
+        "timeout": 30,
+        "cacheable": True,
+        "cache_ttl": 3600
+    }
+}
+```
+
+### model.py 结构示例
+
+```python
+def run(inputs: dict) -> dict:
+    latitude  = inputs["latitude"]
+    longitude = inputs["longitude"]
+    dt        = inputs["datetime"]
+    timezone  = inputs.get("timezone", "Asia/Shanghai")
+
+    # 计算逻辑...
+
+    return {
+        "altitude":   73.56,
+        "azimuth":   178.23,
+        "zenith":     16.44,
+        "is_daytime": True
+    }
+```
+
+---
+
+## 模型关系说明
+
+系统支持在模型间定义四类关系，可在前端「模型统计」页面可视化管理：
+
+| 关系类型 | 含义 |
+|---------|------|
+| `pre` | 上游模型（本模型依赖其输出） |
+| `post` | 下游模型（本模型输出流向的模型） |
+| `depends_on` | 运行依赖（必须先执行的模型） |
+| `conflicts_with` | 冲突模型（不能同时运行） |
+
+---
 
 ## 内置模型
 
-| 模型 | API 路径 |
-|------|---------|
-| 太阳位置模型 | `POST /api/run/solar_position` |
-| 辐照分离模型 | `POST /api/run/irradiance_split` |
-| 光伏转换模型 | `POST /api/run/pv_conversion` |
-| 反射损失模型 | `POST /api/run/reflection` |
+| 模型 | API 路径 | 分类 |
+|------|---------|------|
+| 太阳位置模型 | `POST /api/run/solar_position` | 太阳位置 |
+| 辐照分离模型 | `POST /api/run/irradiance_split` | 辐照分离 |
+| 光伏转换模型 | `POST /api/run/pv_conversion` | 光伏转换 |
+| 反射损失模型 | `POST /api/run/reflection` | 光学修正 |
+
+---
+
+## 数据库表结构
+
+系统启动时自动创建以下三张表：
+
+| 表名 | 用途 |
+|------|------|
+| `model_records` | 模型注册信息主表 |
+| `model_relations` | 模型关系表（四类关系） |
+| `execution_logs` | 模型执行日志表 |
+
+---
+
+## 常见问题排查
+
+**端口被占用：**
+修改 `docker-compose.yml` 中的端口映射，或本地启动时修改 `app.py` 中的 `port` 参数。
+
+**数据库连接失败：**
+检查 `.env` 文件中的数据库配置是否正确，确认 MySQL 服务已启动，并确认数据库 `pv_gateway` 已创建。
+
+**模型加载失败：**
+检查 `backend/models_repo/` 下各模型目录是否同时存在 `meta.py` 和 `model.py`，缺少任意一个该模型会被跳过。
+
+**前端代理不生效：**
+本地开发时前端请求通过 `vite.config.js` 中的 proxy 转发到 `localhost:8080`，确保后端已先行启动。Docker 模式下由 nginx 负责转发，无需关心此问题。
+
+**pvlib 安装慢：**
+可以使用国内镜像源加速：
+
+```bash
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+**datetime 格式错误：**
+时间参数需要包含时区信息，推荐格式为 `2024-06-21T12:00:00+08:00`。
+
+---
+
+## 项目结构
+
+```
+pv-model-gateway/
+├── backend/
+│   ├── api/
+│   │   ├── model_routes.py     # 模型管理接口
+│   │   └── execute_routes.py   # 模型执行接口
+│   ├── core/
+│   │   ├── registry.py         # 模型注册中心
+│   │   ├── executor.py         # 模型执行引擎
+│   │   └── validator.py        # 代码校验器
+│   ├── db/
+│   │   ├── database.py         # 数据库连接与初始化
+│   │   └── models.py           # ORM 数据模型
+│   ├── models_repo/            # 模型文件目录
+│   │   └── {model_name}/
+│   │       ├── meta.py
+│   │       └── model.py
+│   ├── app.py                  # 应用入口
+│   ├── config.py               # 配置管理
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── views/              # 页面组件
+│   │   ├── components/         # 通用组件
+│   │   └── api/                # API 封装
+│   └── package.json
+├── docker-compose.yml
+└── README.md
+```
