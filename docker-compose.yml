@@ -1,0 +1,62 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  # ✅ MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: pv-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "pv_root_2024"
+      MYSQL_DATABASE:      "pv_gateway"
+      MYSQL_USER:          "pv_user"
+      MYSQL_PASSWORD:      "pv_pass_2024"
+    volumes:
+      - pv_mysql_data:/var/lib/mysql      # 数据持久化
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql  # 初始化脚本（可选）
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppv_root_2024"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # 后端服务
+  pv-gateway:
+    build: ./backend
+    container_name: pv-gateway
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/models_repo:/app/models_repo
+    environment:
+      # ✅ MySQL 连接配置
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=pv_user
+      - MYSQL_PASSWORD=pv_pass_2024
+      - MYSQL_DATABASE=pv_gateway
+      # 其他配置
+      - WORKER_PROCESSES=4
+      - MODEL_TIMEOUT=30
+      - CORS_ORIGINS=*
+    depends_on:
+      mysql:
+        condition: service_healthy    # 等待 MySQL 健康检查通过再启动
+    restart: unless-stopped
+
+  # 前端服务
+  frontend:
+    build: ./frontend
+    container_name: pv-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - pv-gateway
+    restart: unless-stopped
+
+volumes:
+  pv_mysql_data:    # MySQL 数据持久化卷
