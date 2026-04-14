@@ -70,6 +70,12 @@ const routes = [
         name: 'UserProfile',
         component: () => import('@/views/UserProfile.vue'),
         meta: { title: '个人信息', requiresAuth: true },
+      },
+      {
+        path: 'docs',
+        name: 'ApiDocs',
+        component: () => import('@/views/ApiDocs.vue'),
+        meta: { title: 'API 文档', requiresAuth: true },
       }
     ],
   },

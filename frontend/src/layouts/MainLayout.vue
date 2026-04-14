@@ -41,18 +41,18 @@
                     </el-icon>
                     <span>新增模型</span>
                 </el-menu-item>
+                <el-menu-item index="/docs">
+                    <el-icon>
+                        <Document />
+                    </el-icon>
+                    <span>API 文档</span>
+                </el-menu-item>
             </el-menu>
 
             <!-- 底部版本信息 -->
             <div style="position:absolute; bottom:16px; left:0; right:0;
                   padding:0 20px; font-size:11px; color:#334155;">
                 <div>v1.0.0 · PV Team</div>
-                <div style="margin-top:2px; color:#1e3a5f;">
-                    API Docs:
-                    <a href="/docs" target="_blank" style="color:#3b82f6; text-decoration:none;">
-                        /docs
-                    </a>
-                </div>
             </div>
 
         </el-aside>
