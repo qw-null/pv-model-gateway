@@ -1,13 +1,12 @@
-import axios from 'axios'
+// src/api/index.js
+import service from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
-const http = axios.create({
-  baseURL: '/api',
-  timeout: 60000,
-})
-
-http.interceptors.response.use(
-  res => res.data,
+// ── 统一错误提示（复用原有逻辑）────────────────────────────────
+// 注意：utils/request.js 的响应拦截器已处理 401 跳转
+// 此处仅保留业务层的 ElMessage 提示兜底
+service.interceptors.response.use(
+  res => res,
   err => {
     const msg = err.response?.data?.detail?.message
       || err.response?.data?.detail
@@ -18,29 +17,30 @@ http.interceptors.response.use(
   }
 )
 
+// ── 模型接口 ───────────────────────────────────────────────────
 export const modelApi = {
   // 模型 CRUD
-  list: (params) => http.get('/models', { params }),
-  get: (name) => http.get(`/models/${name}`),
-  getByModelId: (modelId) => http.get(`/models/by-model-id/${modelId}`),
-  validate: (code) => http.post('/models/validate', { code }),
-  upload: (data) => http.post('/models/upload', data),
-  delete: (name) => http.delete(`/models/${name}`),
-  reload: (name) => http.post(`/models/${name}/reload`),
-  run: (name, body) => http.post(`/run/${name}`, body),
-  logs: (name, limit) => http.get(`/models/${name}/logs`, { params: { limit } }),
+  list: (params) => service.get('/api/models', { params }),
+  get: (name) => service.get(`/api/models/${name}`),
+  getByModelId: (modelId) => service.get(`/api/models/by-model-id/${modelId}`),
+  validate: (code) => service.post('/api/models/validate', { code }),
+  upload: (data) => service.post('/api/models/upload', data),
+  delete: (name) => service.delete(`/api/models/${name}`),
+  reload: (name) => service.post(`/api/models/${name}/reload`),
+  run: (name, body) => service.post(`/api/run/${name}`, body),
+  logs: (name, limit) => service.get(`/api/models/${name}/logs`, { params: { limit } }),
 
   // 关系管理
-  updateRelations: (name, data) => http.put(`/models/${name}/relations`, data),
+  updateRelations: (name, body) => service.put(`/api/models/${name}/relations`, body),
 
   // 分类
-  categories: () => http.get('/models/categories/list'),
-  modelsByCategory: (category) => http.get(`/models/categories/${encodeURIComponent(category)}`),
+  categories: () => service.get('/api/models/categories/list'),
+  modelsByCategory: (category) => service.get(`/api/models/categories/${category}`),
 
   // 统计
-  statsOverview: () => http.get('/models/stats/overview'),
+  statsOverview: () => service.get('/api/models/stats/overview'),
+  getAllNames: () => service.get('/api/models/all-names'),
 
-  getAllNames:()=>http.get('/models/all-names'),
-  updateRelations:(name, body)=>http.put(`/models/${name}/relations`, body)
+  
 
 }

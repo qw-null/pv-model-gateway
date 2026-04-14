@@ -11,6 +11,8 @@ export const useModelStore = defineStore('model', () => {
     try {
       const res = await modelApi.list()
       models.value = res.data
+      console.log('数据来了',res);
+      
     } finally {
       loading.value = false
     }
