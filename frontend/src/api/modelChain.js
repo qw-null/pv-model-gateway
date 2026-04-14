@@ -1,28 +1,14 @@
-import request from '@/utils/request'
+// src/api/modelChain.js  ── 改用 service，复用拦截器
+import service from '@/utils/request'
 
 export function getAllModels() {
-  return request({
-    url: '/api/models',
-    method: 'GET'
-  })
+  return service({ url: '/api/models', method: 'GET' })
 }
 
-// 获取某分类下的模型列表
 export function getModelsByCategory(category) {
-  return request({
-    url: '/api/models',
-    method: 'get',
-    params: { category }
-  })
+  return service({ url: '/api/models', method: 'GET', params: { category } })
 }
 
-// 获取单个模型详情（含 meta 完整信息）
 export function getModelDetail(modelName) {
-  return request({
-    url: `/api/models/${modelName}`,
-    method: 'get'
-  })
+  return service({ url: `/api/models/${modelName}`, method: 'GET' })
 }
-
-
-
