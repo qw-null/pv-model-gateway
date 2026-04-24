@@ -1,0 +1,82 @@
+PVObject_=pvModule
+  Version=7.2
+  Flags=$00100043
+
+  PVObject_Commercial=pvCommercial
+    Comment=http//en.longi-solar.com   (China)
+    Flags=$0041
+    Manufacturer=LONGi solar
+    Model=LR7-72HVH-650M
+    DataSource=LONGi 20240910
+    YearBeg=2024
+    Width=1.134
+    Height=2.382
+    Depth=0.030
+    Weight=28.500
+    NPieces=100
+    PriceDate=14/06/24 11:12
+    Remarks, Count=4
+      Str_1=Frame: Aluminum
+      Str_2=Structure: Tempered AR glass
+      Str_3=Connections: Jbox IP 68, MC4 or mateable
+      Str_4=N type,  Half cut
+    End of Remarks=N type,  Half cut
+  End of PVObject pvCommercial
+
+  Technol=mtSiMono
+  NCelS=72
+  NCelP=2
+  NDiode=3
+  SubModuleLayout=slTwinHalfCells
+  FrontSurface=fsARCoating
+  GRef=1000
+  TRef=25.0
+  PNom=650.0
+  PNomTolLow=0.00
+  PNomTolUp=3.00
+  Isc=15.290
+  Voc=53.90
+  Imp=14.590
+  Vmp=44.56
+  muISC=7.65
+  muVocSpec=-107.8
+  muPmpReq=-0.260
+  RShunt=300
+  Rp_0=22000
+  Rp_Exp=5.50
+  RSerie=0.183
+  Gamma=1.082
+  muGamma=-0.0002
+  VMaxIEC=1500
+  VMaxUL=1500
+  Absorb=0.90
+  ARev=3.200
+  BRev=3.200
+  RDiode=0.010
+  VRevDiode=-0.70
+  AirMassRef=1.500
+  CellWidth=0.1822
+  CellHeight=0.0958
+  CellArea=174.5
+  SandiaAMCorr=50.000
+
+  PVObject_IAM=pvIAM
+    Flags=$00
+    IAMMode=UserProfile
+    IAMProfile=TCubicProfile
+      NPtsMax=9
+      NPtsEff=9
+      LastCompile=$B18D
+      Mode=3
+      Point_1=0.0,1.00000
+      Point_2=50.0,1.00000
+      Point_3=60.0,1.00000
+      Point_4=65.0,0.99000
+      Point_5=70.0,0.96000
+      Point_6=75.0,0.91000
+      Point_7=80.0,0.84000
+      Point_8=85.0,0.68000
+      Point_9=90.0,0.00000
+    End of TCubicProfile
+  End of PVObject pvIAM
+End of PVObject pvModule

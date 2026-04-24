@@ -76,6 +76,18 @@ const routes = [
         name: 'ApiDocs',
         component: () => import('@/views/ApiDocs.vue'),
         meta: { title: 'API 文档', requiresAuth: true },
+      },
+      {
+        path: 'config/panels',
+        name: 'PanelManager',
+        component: () => import('@/views/PanelManager.vue'),
+        meta: { title: '组件管理', requiresAuth: true },
+      },
+      {
+        path: 'config/inverters',
+        name: 'InverterManager',
+        component: () => import('@/views/InverterManager.vue'),  // 预留
+        meta: { title: '逆变器管理', requiresAuth: true },
       }
     ],
   },
