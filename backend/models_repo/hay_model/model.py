@@ -1,9 +1,7 @@
 import math
 
-
 def _deg2rad(deg):
     return math.radians(deg)
-
 
 def _cos_incidence(solar_zenith, solar_azimuth,
                    surface_tilt, surface_azimuth):
@@ -17,19 +15,7 @@ def _cos_incidence(solar_zenith, solar_azimuth,
     )
     return max(0.0, cos_theta)
 
-
 def run(inputs: dict) -> dict:
-    """
-    Hay 转换模型
-
-    公式：
-        Ai = BNI / E0                              各向异性指数
-        Rb = cos(theta) / cos(Z)                   倾斜比
-        Dc = DHI * (Ai * Rb + (1 - Ai) * Fsky)    漫射分量
-        Dg = GHI * albedo * (1 - cos(S)) / 2      地面反射
-        Bc = BNI * cos(theta)                      直接分量
-        GTI = Bc + Dc + Dg
-    """
     ghi             = float(inputs["ghi"])
     dhi             = float(inputs["dhi"])
     bni             = float(inputs["bni"])
@@ -38,6 +24,7 @@ def run(inputs: dict) -> dict:
     surface_tilt    = float(inputs["surface_tilt"])
     surface_azimuth = float(inputs["surface_azimuth"])
     albedo          = float(inputs.get("albedo", 0.2))
+    # 建议调用方传入当日修正值，而非固定使用太阳常数
     dni_extra       = float(inputs.get("dni_extra", 1367.0))
 
     S     = _deg2rad(surface_tilt)
@@ -48,12 +35,13 @@ def run(inputs: dict) -> dict:
         surface_tilt, surface_azimuth
     )
 
-    # 各向异性指数
+    # 各向异性指数：BNI / E0（地外法向辐射）
     ai = bni / max(dni_extra, 1.0)
     ai = max(0.0, min(1.0, ai))
 
-    # 倾斜比 Rb
+    # 倾斜比 Rb，加上合理上限防止数值爆炸
     rb = cos_theta / max(cos_z, 0.01)
+    rb = min(rb, 10.0)  # ← 新增上限保护
 
     # 天空视角因子
     fsky = (1.0 + math.cos(S)) / 2.0
