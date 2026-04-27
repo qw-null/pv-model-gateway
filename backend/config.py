@@ -15,6 +15,12 @@ class Settings:
     # 模型目录
     MODELS_DIR: Path = BASE_DIR / "models_repo"
 
+    # config:组件目录
+    PANELS_DIR: str = "panels_repo"   # .pan 文件存储目录
+    # config:逆变器目录
+    INVERTERS_DIR: str = "inverters_repo"
+
+
     # ✅ MySQL 数据库配置（通过环境变量注入）
     MYSQL_HOST:     str = os.getenv("MYSQL_HOST",     "localhost")
     MYSQL_PORT:     int = int(os.getenv("MYSQL_PORT", "3306"))

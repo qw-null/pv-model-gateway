@@ -41,18 +41,34 @@
                     </el-icon>
                     <span>新增模型</span>
                 </el-menu-item>
+                <!-- 配置管理（新增） -->
+            <el-sub-menu index="/config">
+            <template #title>
+                <el-icon><Setting /></el-icon>
+                <span>配置管理</span>
+            </template>
+            <el-menu-item index="/config/panels">
+                <el-icon><Grid /></el-icon>
+                组件管理
+            </el-menu-item>
+            <el-menu-item index="/config/inverters">
+                <el-icon><Lightning /></el-icon>
+                逆变器管理
+            </el-menu-item>
+            </el-sub-menu>
+
+                <el-menu-item index="/docs">
+                    <el-icon>
+                        <Document />
+                    </el-icon>
+                    <span>API 文档</span>
+                </el-menu-item>
             </el-menu>
 
             <!-- 底部版本信息 -->
             <div style="position:absolute; bottom:16px; left:0; right:0;
                   padding:0 20px; font-size:11px; color:#334155;">
                 <div>v1.0.0 · PV Team</div>
-                <div style="margin-top:2px; color:#1e3a5f;">
-                    API Docs:
-                    <a href="/docs" target="_blank" style="color:#3b82f6; text-decoration:none;">
-                        /docs
-                    </a>
-                </div>
             </div>
 
         </el-aside>
@@ -118,7 +134,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
-import { Grid, EditPen, DataAnalysis, RefreshRight, User, SwitchButton, Flag } from '@element-plus/icons-vue'
+import { Grid, EditPen, DataAnalysis, RefreshRight, User, SwitchButton, Flag, Setting, Lightning } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()

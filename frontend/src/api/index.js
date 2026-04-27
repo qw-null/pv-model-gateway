@@ -32,6 +32,8 @@ export const modelApi = {
 
   // 关系管理
   updateRelations: (name, body) => service.put(`/api/models/${name}/relations`, body),
+  getRelations: (name) => service.get(`/api/models/${name}/relations`),
+
 
   // 分类
   categories: () => service.get('/api/models/categories/list'),
