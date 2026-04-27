@@ -100,13 +100,10 @@ def _model_to_dict(m: ModelRecord, related: dict = None) -> dict:
 def list_models(
     category: Optional[str] = Query(None, description="按分类过滤"),
     keyword:  Optional[str] = Query(None, description="按名称/标题关键词搜索"),
+    page:     int           = Query(1,    ge=1,  description="页码，从 1 开始"),
+    page_size: int          = Query(20,   ge=1, le=200, description="每页条数"),
     db: Session = Depends(get_db)
 ):
-    """
-    前端调用：
-      getAllModels()            → GET /api/models
-      getModelsByCategory(cat) → GET /api/models?category=太阳位置
-    """
     query = db.query(ModelRecord).filter(ModelRecord.is_active == True)
 
     if category:
@@ -117,7 +114,14 @@ def list_models(
             (ModelRecord.title.contains(keyword))
         )
 
-    models = query.order_by(ModelRecord.created_at.desc()).all()
+    total = query.count()
+    models = (
+        query
+        .order_by(ModelRecord.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     return {
         "success": True,
@@ -125,9 +129,10 @@ def list_models(
             _model_to_dict(m, _get_related_models(m, db))
             for m in models
         ],
-        "total": len(models)
+        "total": total,
+        "page": page,
+        "page_size": page_size,
     }
-
 
 @router.get("/all-names", summary="获取所有模型名称")
 def get_all_model_names(db: Session = Depends(get_db)):
