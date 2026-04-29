@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import ModelRecord, ExecutionLog
+from db.panel import PVPanel  # 新增导入
 from core.registry import registry
 from core.executor import safe_execute
 
@@ -37,6 +38,39 @@ def _sanitize_for_json(obj):
         return [_sanitize_for_json(i) for i in obj]
 
     return obj
+
+
+@router.post("/pv_diode", summary="光伏组件二极管模型")
+async def run_pv_diode(body: dict, db: Session = Depends(get_db)):
+    """
+    前端传入完整参数（isc/voc/imp/vmp/temp_coeff/g_ref/t_ref/g_poa/t_cell），
+    panel_id 为可选，仅用于日志追踪。
+    """
+    required = ["isc", "voc", "imp", "vmp", "temp_coeff", "g_ref", "t_ref", "g_poa", "t_cell"]
+    missing = [f for f in required if f not in body]
+    if missing:
+        raise HTTPException(status_code=422, detail={"message": "缺少必填参数", "errors": missing})
+
+    entry = registry.get("pv_diode")
+    if not entry:
+        raise HTTPException(status_code=404, detail="模型 pv_diode 未注册")
+
+    try:
+        outputs, elapsed_ms = await safe_execute(entry["model_path"], body, timeout=30)
+    except (TimeoutError, RuntimeError) as e:
+        _log_execution(db, "pv_diode", body, None, False, str(e), 0)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    safe_outputs = _sanitize_for_json(outputs)
+    _log_execution(db, "pv_diode", body, safe_outputs, True, None, elapsed_ms)
+    _update_call_count(db, "pv_diode")
+
+    return {
+        "success": True,
+        "model": "pv_diode",
+        "outputs": safe_outputs,
+        "execution_time_ms": elapsed_ms,
+    }
 
 
 # ─────────────────────────────────────────────

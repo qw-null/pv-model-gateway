@@ -18,13 +18,13 @@ export const panelApi = {
   manufacturers: () => service.get('/api/panels/manufacturers'),
 
   // 详情
-  get:    (id)         => service.get(`/api/panels/`),
+  get:    (id)         => service.get(`/api/panels/${id}`),
 
   // 修改
-  update: (id, data)   => service.put(`/api/panels/`, data),
+  update: (id, data)   => service.put(`/api/panels/${id}`, data),
 
   // 删除
-  delete: (id)         => service.delete(`/api/panels/`),
+  delete: (id)         => service.delete(`/api/panels/${id}`),
 
   // 新增
   getCurves: (id, data) => service.post(`/api/panels/${id}/curves`, data),
