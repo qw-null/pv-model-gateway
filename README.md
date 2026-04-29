@@ -1,6 +1,6 @@
 # PV Model Gateway — 光伏模型网关
 
-将光伏 Python 模型自动转化为 RESTful API 服务，支持在线编辑、校验、调试与模型关系管理。
+将光伏 Python 模型自动转化为 RESTful API 服务，支持在线编辑、校验、调试、组件/逆变器管理与模型关系管理。
 
 ---
 
@@ -29,6 +29,8 @@ MYSQL_DATABASE=pv_gateway
 
 Docker 模式下在 `docker-compose.yml` 中统一配置，无需单独创建 `.env`。
 
+> **注意：​** `docker-compose.yml` 中挂载了 `./mysql/init.sql` 作为 MySQL 初始化脚本，如不需要可将该挂载行注释掉，或在项目根目录创建 `mysql/init.sql` 空文件。
+
 ---
 
 ## 运行方式
@@ -39,7 +41,7 @@ Docker 模式下在 `docker-compose.yml` 中统一配置，无需单独创建 `.
 
 ```bash
 # 1. 克隆项目
-git clone <your-repo-url>
+git clone https://github.com/qw-null/pv-model-gateway.git
 cd pv-model-gateway
 
 # 2. 一键构建并启动所有服务
@@ -88,6 +90,7 @@ python -m venv venv
 
 # Windows
 venv\Scripts\activate
+
 # macOS / Linux
 source venv/bin/activate
 
@@ -101,16 +104,18 @@ python app.py
 uvicorn app:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-后端启动后，终端会输出类似如下日志，说明模型已自动加载：
+后端启动后，终端会输出类似如下日志：
 
 ```
-INFO  初始化数据库...
-INFO  扫描并加载模型...
-INFO  已加载模型: solar_position (太阳位置模型)
-INFO  已加载模型: irradiance_split (辐照分离模型)
-INFO  已加载模型: pv_conversion (光伏转换模型)
-INFO  已加载模型: reflection (反射损失模型)
-INFO  启动完成
+检查数据库连接...
+初始化数据库表结构...
+扫描并加载模型...
+已加载模型: ['solar_position', 'irradiance_split', 'pv_conversion', 'reflection']
+同步 panels_repo 组件文件...
+同步 inverters_repo 逆变器文件...
+初始化管理员账号...
+默认管理员账号已创建（admin / admin123），请尽快修改密码
+PV Model Gateway 启动完成 ✅
 ```
 
 #### 第三步：启动前端
@@ -129,6 +134,18 @@ npm run dev
 ```
 
 前端启动后访问 http://localhost:3000 即可。
+
+---
+
+## 默认管理员账号
+
+系统首次启动时会自动创建默认管理员账号：
+
+| 用户名 | 密码 |
+|--------|------|
+| `admin` | `admin123` |
+
+**请在首次登录后立即修改密码。​**
 
 ---
 
@@ -227,10 +244,10 @@ MODEL_META = {
         }
     ],
     "outputs": [
-        {"name": "altitude",   "type": "float", "unit": "°", "description": "太阳高度角"},
-        {"name": "azimuth",    "type": "float", "unit": "°", "description": "太阳方位角"},
-        {"name": "zenith",     "type": "float", "unit": "°", "description": "天顶角"},
-        {"name": "is_daytime", "type": "bool",  "unit": "",  "description": "是否为白天"}
+        {"name": "altitude", "type": "float", "unit": "°", "description": "太阳高度角"},
+        {"name": "azimuth",  "type": "float", "unit": "°", "description": "太阳方位角"},
+        {"name": "zenith",   "type": "float", "unit": "°", "description": "天顶角"},
+        {"name": "is_daytime", "type": "bool", "unit": "", "description": "是否为白天"}
     ],
     "tags": ["solar", "position"],
     "execution": {
@@ -249,16 +266,25 @@ def run(inputs: dict) -> dict:
     longitude = inputs["longitude"]
     dt        = inputs["datetime"]
     timezone  = inputs.get("timezone", "Asia/Shanghai")
-
     # 计算逻辑...
-
     return {
         "altitude":   73.56,
-        "azimuth":   178.23,
+        "azimuth":    178.23,
         "zenith":     16.44,
         "is_daytime": True
     }
 ```
+
+---
+
+## 组件与逆变器管理
+
+系统支持导入光伏组件（`.pan` 文件）和逆变器（`.ond` 文件）：
+
+- 将 `.pan` 文件放入 `backend/panels_repo/` 目录，启动时自动解析入库
+- 将 `.ond` 文件放入 `backend/inverters_repo/` 目录，启动时自动解析入库
+- 已入库的文件不会重复导入（按文件名去重）
+- 可通过前端界面进行管理，对应后端接口分别为 `/api/panels/` 和 `/api/inverters/`
 
 ---
 
@@ -288,38 +314,47 @@ def run(inputs: dict) -> dict:
 
 ## 数据库表结构
 
-系统启动时自动创建以下三张表：
+系统启动时自动创建以下数据表：
 
 | 表名 | 用途 |
 |------|------|
 | `model_records` | 模型注册信息主表 |
 | `model_relations` | 模型关系表（四类关系） |
 | `execution_logs` | 模型执行日志表 |
+| `pvpanel`（或对应表名） | 光伏组件信息表（来自 `.pan` 文件） |
+| `inverter`（或对应表名） | 逆变器信息表（来自 `.ond` 文件） |
+| `users` | 用户账号表 |
 
 ---
 
 ## 常见问题排查
 
-**端口被占用：**
+**端口被占用：​**
 修改 `docker-compose.yml` 中的端口映射，或本地启动时修改 `app.py` 中的 `port` 参数。
 
-**数据库连接失败：**
+**数据库连接失败：​**
 检查 `.env` 文件中的数据库配置是否正确，确认 MySQL 服务已启动，并确认数据库 `pv_gateway` 已创建。
 
-**模型加载失败：**
+**Docker 启动报错（init.sql 不存在）：​**
+`docker-compose.yml` 中默认挂载了 `./mysql/init.sql`，若该文件不存在会导致 MySQL 容器启动失败。可在项目根目录执行：
+```bash
+mkdir -p mysql && touch mysql/init.sql
+```
+或直接注释掉 `docker-compose.yml` 中对应的 `volumes` 挂载行。
+
+**模型加载失败：​**
 检查 `backend/models_repo/` 下各模型目录是否同时存在 `meta.py` 和 `model.py`，缺少任意一个该模型会被跳过。
 
-**前端代理不生效：**
+**前端代理不生效：​**
 本地开发时前端请求通过 `vite.config.js` 中的 proxy 转发到 `localhost:8080`，确保后端已先行启动。Docker 模式下由 nginx 负责转发，无需关心此问题。
 
-**pvlib 安装慢：**
+**pvlib 安装慢：​**
 可以使用国内镜像源加速：
-
 ```bash
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-**datetime 格式错误：**
+**datetime 格式错误：​**
 时间参数需要包含时区信息，推荐格式为 `2024-06-21T12:00:00+08:00`。
 
 ---
@@ -330,28 +365,45 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 pv-model-gateway/
 ├── backend/
 │   ├── api/
+│   │   ├── auth_routes.py      # 用户认证接口
 │   │   ├── model_routes.py     # 模型管理接口
-│   │   └── execute_routes.py   # 模型执行接口
+│   │   ├── execute_routes.py   # 模型执行接口
+│   │   ├── panel_routes.py     # 光伏组件接口
+│   │   └── inverter_routes.py  # 逆变器接口
 │   ├── core/
 │   │   ├── registry.py         # 模型注册中心
 │   │   ├── executor.py         # 模型执行引擎
-│   │   └── validator.py        # 代码校验器
+│   │   ├── validator.py        # 代码校验器
+│   │   ├── auth.py             # 认证工具（密码哈希等）
+│   │   ├── sandbox.py          # 沙箱执行环境
+│   │   ├── pan_parser.py       # .pan 文件解析器
+│   │   ├── ond_parser.py       # .ond 文件解析器
+│   │   └── iv_curve.py         # IV 曲线计算
 │   ├── db/
 │   │   ├── database.py         # 数据库连接与初始化
-│   │   └── models.py           # ORM 数据模型
+│   │   ├── models.py           # 模型 ORM
+│   │   ├── panel.py            # 光伏组件 ORM
+│   │   ├── inverter.py         # 逆变器 ORM
+│   │   └── users.py            # 用户 ORM
 │   ├── models_repo/            # 模型文件目录
 │   │   └── {model_name}/
 │   │       ├── meta.py
 │   │       └── model.py
+│   ├── panels_repo/            # 光伏组件 .pan 文件目录
+│   ├── inverters_repo/         # 逆变器 .ond 文件目录
 │   ├── app.py                  # 应用入口
 │   ├── config.py               # 配置管理
+│   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── views/              # 页面组件
 │   │   ├── components/         # 通用组件
 │   │   └── api/                # API 封装
+│   ├── Dockerfile
+│   ├── nginx.conf
 │   └── package.json
 ├── docker-compose.yml
+├── model_relations.sql
 └── README.md
 ```
