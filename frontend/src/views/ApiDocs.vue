@@ -948,6 +948,99 @@ const apiDocs = [
         }, null, 2),
     },
 
+    // ────────────────────────────────────────────────────────────
+    // 分组：逆变器管理
+    // ────────────────────────────────────────────────────────────
+    {
+        key: 'inverter-manufacturers',
+        group: '逆变器管理',
+        method: 'GET',
+        path: '/api/inverters/manufacturers',
+        title: '获取逆变器厂家列表',
+        description: '获取系统中所有已录入逆变器的厂家名称，返回去重后按字母升序排列的字符串数组，可用于前端下拉筛选。无需任何请求参数，直接调用即可。',
+        responseExample: JSON.stringify({
+            success: true,
+            data: ['ABB', 'Huawei', 'SMA', 'Sungrow'],
+        }, null, 2),
+    },
+    {
+        key: 'inverter-list',
+        group: '逆变器管理',
+        method: 'GET',
+        path: '/api/inverters',
+        title: '获取逆变器列表',
+        description: '获取已入库的逆变器列表，支持按厂家精确筛选与型号关键词模糊搜索，结果按厂家 + 型号升序排列并分页返回。每条记录包含基本电气参数，不含效率曲线和原始文件内容。',
+        queryParams: [
+            { name: 'manufacturer', type: 'string', required: false, desc: '厂家名称，精确匹配，如 "SMA"' },
+            { name: 'model_name', type: 'string', required: false, desc: '型号关键词，模糊搜索，如 "Tripower"' },
+            { name: 'page', type: 'integer', required: false, desc: '页码，默认 1' },
+            { name: 'page_size', type: 'integer', required: false, desc: '每页条数，默认 10' },
+        ],
+        responseExample: JSON.stringify({
+            success: true,
+            data: [
+                {
+                    id: 1,
+                    filename: 'SMA_Sunny_Tripower_25000TL.ond',
+                    manufacturer: 'SMA',
+                    model_name: 'Sunny Tripower 25000TL',
+                    vmp_min: 360.0, vmp_nom: 530.0, vmp_max: 800.0,
+                    vdc_max: 1000.0, vac_out: 400.0,
+                    pac_nom: 25.0, pac_max: 27.5,
+                    iac_nom: 36.1, iac_max: 39.7,
+                    efficiency: 98.4,
+                    efficiency_curves: {},
+                    temp_pac_nom: 25.0, temp_pac_max: 50.0,
+                    temp_derating: -0.05, pac_derating: 12.5,
+                    temp_derating_limit: 45.0,
+                    created_at: '2026-04-24T10:00:00',
+                    updated_at: '2026-04-24T10:00:00',
+                },
+            ],
+            total: 1,
+            page: 1,
+            page_size: 10,
+        }, null, 2),
+    },
+    {
+        key: 'inverter-detail',
+        group: '逆变器管理',
+        method: 'GET',
+        path: '/api/inverters/{inv_id}',
+        title: '获取逆变器详情',
+        description: '根据逆变器 ID 获取完整参数，包含 MPPT 电压范围、额定/最大功率、效率曲线（efficiency_curves）、温度降额参数，以及解析前的原始 .OND 文件内容（raw_content）。',
+        pathParams: [
+            { name: 'inv_id', type: 'integer', required: true, desc: '逆变器记录 ID，来自列表接口的 data[].id 字段' },
+        ],
+        responseExample: JSON.stringify({
+            success: true,
+            data: {
+                id: 1,
+                filename: 'SMA_Sunny_Tripower_25000TL.ond',
+                manufacturer: 'SMA',
+                model_name: 'Sunny Tripower 25000TL',
+                vmp_min: 360.0, vmp_nom: 530.0, vmp_max: 800.0,
+                vdc_max: 1000.0, vac_out: 400.0,
+                pac_nom: 25.0, pac_max: 27.5,
+                iac_nom: 36.1, iac_max: 39.7,
+                efficiency: 98.4,
+                efficiency_curves: {
+                    '100%': [[5000, 97.8], [12500, 98.2], [25000, 98.4]],
+                    '50%': [[2500, 97.1], [6250, 97.6], [12500, 97.9]],
+                },
+                temp_pac_nom: 25.0,
+                temp_pac_max: 50.0,
+                temp_derating: -0.05,
+                pac_derating: 12.5,
+                temp_derating_limit: 45.0,
+                raw_content: '[Inverter]\nManufacturer=SMA\nModel=Sunny Tripower 25000TL\n...',
+                created_at: '2026-04-24T10:00:00',
+                updated_at: '2026-04-24T10:00:00',
+            },
+        }, null, 2),
+    },
+
+
 
     // ────────────────────────────────────────────────────────────
     // 分组：模型链
