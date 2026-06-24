@@ -38,8 +38,8 @@
             </div>
         </div>
 
-        <ModelChainResult :nodes="nodes" :candidate-models="modelsByCategory" :node-icons="NODE_ICON"
-            @run-chain="onRunChain" class="canvas-wrap" />
+        <!-- <ModelChainResult :nodes="nodes" :candidate-models="modelsByCategory" :node-icons="NODE_ICON"
+            @run-chain="onRunChain" class="canvas-wrap" /> -->
 
         <!-- 侧边抽屉 -->
         <Transition name="slide">

@@ -16,20 +16,29 @@
             <span class="param-name">{{ inp.name }}</span>
             <el-tag size="small" type="info">{{ inp.type }}</el-tag>
             <el-tag v-if="inp.required" size="small" type="danger">必填</el-tag>
+            <!-- 来源标注：组件 -->
             <el-tag v-if="inp.source === 'panel'" size="small" type="warning">来自组件</el-tag>
+            <!-- 来源标注：逆变器（新增） -->
+            <el-tag v-if="inp.source === 'inverter'" size="small" color="#e0f2fe"
+              style="color:#0369a1; border-color:#7dd3fc;">来自逆变器</el-tag>
             <span v-if="inp.description" class="param-desc">{{ inp.description }}</span>
           </div>
         </template>
 
-        <!-- 来自组件且已被覆盖：只读 + 锁图标 -->
+        <!-- 来自组件且已被覆盖：只读 + 锁图标（橙色） -->
         <template v-if="inp.source === 'panel' && isOverridden(inp.name)">
-          <el-input
-            :model-value="String(localData[inp.name])"
-            readonly
-            class="panel-filled-input"
-          >
+          <el-input :model-value="String(localData[inp.name])" readonly class="panel-filled-input">
             <template #suffix>
               <el-icon color="#f5a623"><Lock /></el-icon>
+            </template>
+          </el-input>
+        </template>
+
+        <!-- 来自逆变器且已被覆盖：只读 + 锁图标（蓝色，新增） -->
+        <template v-else-if="inp.source === 'inverter' && isOverridden(inp.name)">
+          <el-input :model-value="String(localData[inp.name])" readonly class="inverter-filled-input">
+            <template #suffix>
+              <el-icon color="#0891b2"><Lock /></el-icon>
             </template>
           </el-input>
         </template>
@@ -37,7 +46,7 @@
         <!-- 枚举 -->
         <el-select v-else-if="inp.type === 'enum'" v-model="localData[inp.name]"
           placeholder="请选择" style="width:100%" @change="emitChange">
-          <el-option v-for="opt in (inp.options||[])" :key="opt" :label="opt" :value="opt" />
+          <el-option v-for="opt in (inp.options || [])" :key="opt" :label="opt" :value="opt" />
         </el-select>
 
         <!-- 布尔 -->
@@ -78,8 +87,8 @@
           :placeholder="`请输入 ${inp.name}`" clearable @input="emitChange" />
 
         <!-- 范围提示 -->
-        <div v-if="(inp.type==='float'||inp.type==='int') &&
-                   (inp.min!==undefined||inp.max!==undefined)" class="compact-tip">
+        <div v-if="(inp.type === 'float' || inp.type === 'int') &&
+          (inp.min !== undefined || inp.max !== undefined)" class="compact-tip">
           范围：
           <span v-if="inp.min !== undefined">{{ inp.min }}</span>
           <span v-if="inp.min !== undefined && inp.max !== undefined"> ～ </span>
@@ -96,14 +105,15 @@ import { Lock } from '@element-plus/icons-vue'
 
 const props = defineProps({
   inputs:    { type: Array,  default: () => [] },
-  overrides: { type: Object, default: () => ({}) },  // 新增
+  overrides: { type: Object, default: () => ({}) },
 })
+
 const emit = defineEmits(['update:formData'])
 const localData = reactive({})
 
 const timezoneOptions = [
-  'Asia/Shanghai','Asia/Chongqing','Asia/Tokyo','Asia/Seoul',
-  'UTC','Europe/London','Europe/Berlin','America/New_York','America/Los_Angeles',
+  'Asia/Shanghai', 'Asia/Chongqing', 'Asia/Tokyo', 'Asia/Seoul',
+  'UTC', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles',
 ]
 
 const visibleInputs = computed(() =>
@@ -123,11 +133,11 @@ function isOverridden(name) {
 
 function getDefault(inp) {
   if (isDatetime(inp)) {
-    const now = new Date(), p = n => String(n).padStart(2,'0')
-    return `${now.getFullYear()}-${p(now.getMonth()+1)}-${p(now.getDate())}T${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`
+    const now = new Date(), p = n => String(n).padStart(2, '0')
+    return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}T${p(now.getHours())}:${p(now.getMinutes())}:${p(now.getSeconds())}`
   }
   if (inp.default !== undefined && inp.default !== null)
-    return inp.type==='float'||inp.type==='int' ? Number(inp.default) : inp.default
+    return inp.type === 'float' || inp.type === 'int' ? Number(inp.default) : inp.default
   if (inp.type === 'float') return inp.min !== undefined ? Number(inp.min) : 0.0
   if (inp.type === 'int')   return inp.min !== undefined ? Number(inp.min) : 0
   if (inp.type === 'bool')  return false
@@ -145,7 +155,6 @@ watch(() => props.inputs, (newInputs) => {
   emit('update:formData', { ...localData })
 }, { immediate: true, deep: true })
 
-// overrides 变化时注入 localData（触发表单回填）
 watch(() => props.overrides, (newOverrides) => {
   if (!newOverrides) return
   Object.entries(newOverrides).forEach(([key, val]) => {
@@ -157,15 +166,21 @@ watch(() => props.overrides, (newOverrides) => {
 
 <style scoped>
 .compact-form { font-size: 13px; }
-.compact-label { display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:2px; }
-.param-name { font-weight:600; color:#1e293b; font-size:13px; }
-.param-desc { font-size:11px; color:#94a3b8; }
-.panel-filled-input :deep(.el-input__wrapper) { background:#fffbf0; border-color:#f5a623; }
-.submit-preview { margin-top:4px; padding:3px 8px; background:#f0f9ff; border-radius:4px; font-size:11px; color:#0369a1; font-family:monospace; }
-.compact-tip { font-size:11px; color:#94a3b8; margin-top:2px; }
+.compact-label { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-bottom: 2px; }
+.param-name { font-weight: 600; color: #1e293b; font-size: 13px; }
+.param-desc { font-size: 11px; color: #94a3b8; }
+
+/* 组件自动填充：橙色 */
+.panel-filled-input :deep(.el-input__wrapper) { background: #fffbf0; border-color: #f5a623; }
+
+/* 逆变器自动填充：蓝色（新增） */
+.inverter-filled-input :deep(.el-input__wrapper) { background: #f0f9ff; border-color: #0891b2; }
+
+.submit-preview { margin-top: 4px; padding: 3px 8px; background: #f0f9ff; border-radius: 4px; font-size: 11px; color: #0369a1; font-family: monospace; }
+.compact-tip { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 .compact-form :deep(.el-input__wrapper),
 .compact-form :deep(.el-input-number),
 .compact-form :deep(.el-select__wrapper),
-.compact-form :deep(.el-date-editor) { min-height:30px !important; height:30px !important; }
-.compact-form :deep(.el-tag) { font-size:10px; padding:0 6px; height:18px; line-height:16px; }
+.compact-form :deep(.el-date-editor) { min-height: 30px !important; height: 30px !important; }
+.compact-form :deep(.el-tag) { font-size: 10px; padding: 0 6px; height: 18px; line-height: 16px; }
 </style>

@@ -26,7 +26,7 @@ export const panelApi = {
   // 删除
   delete: (id)         => service.delete(`/api/panels/${id}`),
 
-  // 新增
+  // 曲线接口
   getCurves: (id, data) => service.post(`/api/panels/${id}/curves`, data),
 
 }

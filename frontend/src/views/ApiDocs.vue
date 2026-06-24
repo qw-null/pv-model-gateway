@@ -218,45 +218,156 @@
                             <p class="doc-hero-desc">{{ currentDoc.description }}</p>
                         </div>
 
-                        <!-- Path 参数 -->
-                        <div class="doc-section" v-if="currentDoc.pathParams?.length">
-                            <div class="section-title">Path 参数</div>
-                            <ParamTable :data="currentDoc.pathParams" />
-                        </div>
+                        <!-- WORKFLOW 专属：四步调用流程卡片 -->
+                        <template v-if="currentDoc.method === 'WORKFLOW'">
+                            <div class="doc-section workflow-steps">
+                                <div class="section-title">调用流程</div>
 
-                        <!-- Query 参数 -->
-                        <div class="doc-section" v-if="currentDoc.queryParams?.length">
-                            <div class="section-title">Query 参数</div>
-                            <ParamTable :data="currentDoc.queryParams" />
-                        </div>
+                                <!-- ── Step 1：获取厂家列表 ── -->
+                                <div class="workflow-step-card">
+                                    <div class="step-header">
+                                        <span class="step-badge">Step 1</span>
+                                        <span class="step-method-tag get">GET</span>
+                                        <code class="step-path">/api/panels/manufacturers</code>
+                                        <span class="step-desc-inline">获取所有组件厂家名称列表</span>
+                                    </div>
+                                    <div class="step-body">
+                                        <p class="step-note">
+                                            首先调用此接口获取系统中已录入的所有组件厂家名称，
+                                            用于在 Step 2 中按厂家筛选组件型号。无需任何请求参数，直接调用即可。
+                                        </p>
+                                        <div class="step-example">
+                                            <div class="step-example-label">响应示例</div>
+                                            <CodeBlock lang="JSON" :code="step1ResponseExample" @copy="copyText" />
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <!-- Body 参数 -->
-                        <div class="doc-section" v-if="currentDoc.bodyParams?.length">
-                            <div class="section-title">
-                                Request Body
-                                <span class="muted" style="font-weight:400;margin-left:6px">application/json</span>
+                                <!-- ── Step 2：按厂家+型号查询，获取组件 ID ── -->
+                                <div class="workflow-step-card">
+                                    <div class="step-header">
+                                        <span class="step-badge">Step 2</span>
+                                        <span class="step-method-tag get">GET</span>
+                                        <code class="step-path">/api/panels</code>
+                                        <span class="step-desc-inline">根据厂家和型号获取组件 ID</span>
+                                    </div>
+                                    <div class="step-body">
+                                        <p class="step-note">
+                                            使用 Step 1 返回的厂家名称作为 <code>manufacturer</code> 参数进行精确过滤，
+                                            配合 <code>model_name</code> 关键字模糊搜索，
+                                            从返回列表中取目标组件的 <code>data[].id</code> 字段，作为 Step 3 的路径参数。
+                                        </p>
+                                        <ParamTable :data="step2QueryParams" />
+                                        <div class="step-example">
+                                            <div class="step-example-label">响应示例（取 data[].id）</div>
+                                            <CodeBlock lang="JSON" :code="step2ResponseExample" @copy="copyText" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- ── Step 3：根据 ID 查询组件详情 ── -->
+                                <div class="workflow-step-card">
+                                    <div class="step-header">
+                                        <span class="step-badge">Step 3</span>
+                                        <span class="step-method-tag get">GET</span>
+                                        <code class="step-path">/api/panels/{panel_id}</code>
+                                        <span class="step-desc-inline">根据组件 ID 查询完整电学参数</span>
+                                    </div>
+                                    <div class="step-body">
+                                        <p class="step-note">
+                                            使用 Step 2 获取的 <code>id</code> 作为路径参数，返回该组件的完整电学数据，
+                                            将 <code>isc / voc / imp / vmp / temp_coeff / g_ref / t_ref</code>
+                                            用于填充 Step 4 的请求体。
+                                        </p>
+                                        <ParamTable :data="step3PathParams" />
+                                        <div class="step-example">
+                                            <div class="step-example-label">响应示例（取电学参数）</div>
+                                            <CodeBlock lang="JSON" :code="step3ResponseExample" @copy="copyText" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- ── Step 4：调用二极管模型 ── -->
+                                <div class="workflow-step-card">
+                                    <div class="step-header">
+                                        <span class="step-badge">Step 4</span>
+                                        <span class="step-method-tag post">POST</span>
+                                        <code class="step-path">/api/run/pv_diode</code>
+                                        <span class="step-desc-inline">调用二极管模型计算输出功率</span>
+                                    </div>
+                                    <div class="step-body">
+                                        <p class="step-note">
+                                            将 Step 3 获取的组件电学参数与用户手动输入的工况参数一起发送。<br />
+                                            <b>方式一</b>：仅传 <code>panel_id + g_poa + t_cell</code>，后端自动从数据库补全组件参数；<br />
+                                            <b>方式二</b>：传入全部参数（isc / voc / imp / vmp / temp_coeff / g_ref / t_ref / g_poa
+                                            / t_cell）。
+                                        </p>
+                                        <div class="section-title" style="font-size:13px;margin:12px 0 6px">
+                                            Request Body
+                                        </div>
+                                        <ParamTable :data="currentDoc.bodyParams" />
+                                        <div class="step-example">
+                                            <div class="step-example-label">请求示例</div>
+                                            <CodeBlock lang="JSON" :code="currentDoc.requestExample" @copy="copyText" />
+                                        </div>
+                                        <div class="step-example" style="margin-top:12px">
+                                            <div class="step-example-label">响应示例</div>
+                                            <CodeBlock lang="JSON" :code="currentDoc.responseExample"
+                                                @copy="copyText" />
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
-                            <ParamTable :data="currentDoc.bodyParams" />
-                        </div>
 
-                        <!-- 请求示例 -->
-                        <div class="doc-section" v-if="currentDoc.requestExample">
-                            <div class="section-title">请求示例</div>
-                            <CodeBlock lang="JSON" :code="currentDoc.requestExample" @copy="copyText" />
-                        </div>
+                            <!-- 错误码 -->
+                            <div class="doc-section" style="margin-bottom:40px">
+                                <div class="section-title">错误码说明</div>
+                                <ErrorCodeTable :data="errorCodes" />
+                            </div>
+                        </template>
 
-                        <!-- 响应示例 -->
-                        <div class="doc-section" v-if="currentDoc.responseExample">
-                            <div class="section-title">响应示例</div>
-                            <CodeBlock lang="JSON" :code="currentDoc.responseExample" @copy="copyText" />
-                        </div>
+                        <!-- 非 WORKFLOW 的普通文档，保持原有渲染逻辑不变 -->
+                        <template v-else>
+                            <!-- Path 参数 -->
+                            <div class="doc-section" v-if="currentDoc.pathParams?.length">
+                                <div class="section-title">Path 参数</div>
+                                <ParamTable :data="currentDoc.pathParams" />
+                            </div>
 
-                        <!-- 错误码 -->
-                        <div class="doc-section" style="margin-bottom:40px">
-                            <div class="section-title">错误码说明</div>
-                            <ErrorCodeTable :data="errorCodes" />
-                        </div>
+                            <!-- Query 参数 -->
+                            <div class="doc-section" v-if="currentDoc.queryParams?.length">
+                                <div class="section-title">Query 参数</div>
+                                <ParamTable :data="currentDoc.queryParams" />
+                            </div>
 
+                            <!-- Body 参数 -->
+                            <div class="doc-section" v-if="currentDoc.bodyParams?.length">
+                                <div class="section-title">
+                                    Request Body
+                                    <span class="muted" style="font-weight:400;margin-left:6px">application/json</span>
+                                </div>
+                                <ParamTable :data="currentDoc.bodyParams" />
+                            </div>
+
+                            <!-- 请求示例 -->
+                            <div class="doc-section" v-if="currentDoc.requestExample">
+                                <div class="section-title">请求示例</div>
+                                <CodeBlock lang="JSON" :code="currentDoc.requestExample" @copy="copyText" />
+                            </div>
+
+                            <!-- 响应示例 -->
+                            <div class="doc-section" v-if="currentDoc.responseExample">
+                                <div class="section-title">响应示例</div>
+                                <CodeBlock lang="JSON" :code="currentDoc.responseExample" @copy="copyText" />
+                            </div>
+
+                            <!-- 错误码 -->
+                            <div class="doc-section" style="margin-bottom:40px">
+                                <div class="section-title">错误码说明</div>
+                                <ErrorCodeTable :data="errorCodes" />
+                            </div>
+                        </template>
                     </div>
                 </template>
 
@@ -305,6 +416,68 @@ const errorCodes = [
     { code: 422, name: 'Execution Error', desc: 'Python 模型执行错误或超时' },
     { code: 500, name: 'Internal Server Error', desc: '服务器内部错误，请查看后端日志' },
 ]
+
+// 光伏组件二极管模型 — 三步调用说明
+// ── WORKFLOW pv_diode 四步静态数据 ──────────────────────────
+
+// Step 1：GET /api/panels/manufacturers 响应示例
+const step1ResponseExample = JSON.stringify({
+    success: true,
+    data: ['JA Solar', 'LONGi', 'Trina Solar', 'Canadian Solar', 'Risen Energy']
+}, null, 2)
+
+// Step 2：GET /api/panels  Query 参数
+const step2QueryParams = [
+    {
+        name: 'manufacturer', type: 'string', required: false,
+        desc: '厂家名称（精确匹配），来自 Step 1 返回的列表'
+    },
+    {
+        name: 'model_name', type: 'string', required: false,
+        desc: '型号关键字（模糊匹配），返回 data[].id 即为组件 ID'
+    },
+    {
+        name: 'page', type: 'integer', required: false,
+        desc: '页码，默认 1'
+    },
+    {
+        name: 'page_size', type: 'integer', required: false,
+        desc: '每页数量，默认 100'
+    },
+]
+
+// Step 2：GET /api/panels 响应示例
+const step2ResponseExample = JSON.stringify({
+    success: true,
+    data: [
+        { id: 3, manufacturer: 'JA Solar', model_name: 'JAM72S30-545/MR', pmp_calc: 545.0 },
+        { id: 4, manufacturer: 'JA Solar', model_name: 'JAM72S30-530/MR', pmp_calc: 530.0 },
+    ],
+    total: 2, page: 1, page_size: 100
+}, null, 2)
+
+// Step 3：GET /api/panels/{panel_id}  Path 参数
+const step3PathParams = [
+    {
+        name: 'panel_id', type: 'integer', required: true,
+        desc: '组件 ID，来自 Step 2 返回的 data[].id'
+    },
+]
+
+// Step 3：GET /api/panels/{panel_id} 响应示例
+const step3ResponseExample = JSON.stringify({
+    success: true,
+    data: {
+        id: 3,
+        manufacturer: 'JA Solar',
+        model_name: 'JAM72S30-545/MR',
+        isc: 13.96, voc: 49.8, imp: 13.14, vmp: 41.5,
+        temp_coeff: 6.22, g_ref: 1000.0, t_ref: 25.0,
+        pmp_calc: 545.0, efficiency: 21.2
+    }
+}, null, 2)
+
+
 
 // ── 接口文档定义 ───────────────────────────────────────────────
 const apiDocs = [
@@ -576,106 +749,307 @@ const apiDocs = [
     },
 
     // ────────────────────────────────────────────────────────────
-    // 分组：模型链
+    // 分组：光伏组件二极管模型调用方法
     // ────────────────────────────────────────────────────────────
     {
-        key: 'chain-run',
-        group: '模型链',
-        method: 'POST',
-        path: '/api/chain/run',
-        title: '执行模型链',
-        description: '按顺序串联执行多个模型，前一个模型的输出字段可通过 input_mapping 自动映射为下一个模型的输入，最终返回每个节点的执行结果和总耗时。',
+        key: 'pv-diode-workflow',
+        group: '单模型运行',
+        method: 'WORKFLOW',
+        path: '/api/run/pv_diode',
+        title: '光伏组件二极管模型 — 四步调用说明',       // 改为"四步"
+        description: 'pv_diode 模型依赖组件库电学参数，推荐按以下四步顺序完成完整调用流程。',
         bodyParams: [
-            { name: 'chain', type: 'Array', required: true, desc: '模型链节点数组，按执行顺序排列' },
-            { name: 'chain[].model_id', type: 'string', required: true, desc: '节点使用的模型 name，必须是已注册的有效模型' },
-            { name: 'chain[].inputs', type: 'Object', required: true, desc: '该节点的直接输入参数，无法从上游映射的参数在此提供' },
-            { name: 'chain[].input_mapping', type: 'Object', required: false, desc: '字段映射规则，格式：{ "本节点字段": "上游节点ID.输出字段" }' },
-            { name: 'chain[].alias', type: 'string', required: false, desc: '节点别名，用于在 input_mapping 中引用，默认使用 model_id' },
-            { name: 'chain[].skip_on_error', type: 'boolean', required: false, desc: '当前节点出错时是否跳过继续执行，默认 false' },
+            {
+                name: 'panel_id', type: 'integer', required: false,
+                desc: '可选。传入后后端自动从数据库补全缺失的组件电学参数（方式一）'
+            },
+            {
+                name: 'isc', type: 'float', required: true,
+                desc: '短路电流 (A)，来自 Step 3 组件详情'
+            },
+            {
+                name: 'voc', type: 'float', required: true,
+                desc: '开路电压 (V)，来自 Step 3 组件详情'
+            },
+            {
+                name: 'imp', type: 'float', required: true,
+                desc: '最大功率点电流 (A)，来自 Step 3 组件详情'
+            },
+            {
+                name: 'vmp', type: 'float', required: true,
+                desc: '最大功率点电压 (V)，来自 Step 3 组件详情'
+            },
+            {
+                name: 'temp_coeff', type: 'float', required: true,
+                desc: '温度系数 (mA/℃)，来自 Step 3 组件详情'
+            },
+            {
+                name: 'g_ref', type: 'float', required: true,
+                desc: '参考辐照度 (W/m²)，来自 Step 3，通常为 1000.0'
+            },
+            {
+                name: 't_ref', type: 'float', required: true,
+                desc: '参考温度 (℃)，来自 Step 3，通常为 25.0'
+            },
+            {
+                name: 'g_poa', type: 'float', required: true,
+                desc: '【用户输入】实际平面辐照度 (W/m²)，范围 0 ~ 1500'
+            },
+            {
+                name: 't_cell', type: 'float', required: true,
+                desc: '【用户输入】电池温度 (℃)，范围 -40 ~ 100'
+            },
         ],
         requestExample: JSON.stringify({
-            chain: [
-                {
-                    model_id: 'solar_position',
-                    inputs: { latitude: 39.9042, longitude: 116.4074, datetime_str: '2026-06-21T04:00:00Z' },
-                },
-                {
-                    model_id: 'perez_separation',
-                    inputs: { ghi: 800 },
-                    input_mapping: {
-                        solar_zenith: 'solar_position.solar_zenith',
-                        datetime_str: 'solar_position.datetime_str',
-                    },
-                },
-                {
-                    model_id: 'pv_conversion',
-                    inputs: { temp_air: 25.0 },
-                    input_mapping: { poa_irradiance: 'perez_separation.dni' },
-                },
-            ],
+            panel_id: 3,
+            isc: 13.96, voc: 49.8, imp: 13.14, vmp: 41.5,
+            temp_coeff: 6.22, g_ref: 1000.0, t_ref: 25.0,
+            g_poa: 800.0, t_cell: 35.0,
         }, null, 2),
         responseExample: JSON.stringify({
-            code: 200,
-            data: {
-                total_execution_time: 680,
-                results: [
-                    { step: 1, model_id: 'solar_position', status: 'success', execution_time: 210, outputs: { solar_zenith: 22.48, solar_azimuth: 175.64, solar_elevation: 67.52 } },
-                    { step: 2, model_id: 'perez_separation', status: 'success', execution_time: 195, outputs: { dni: 683.42, dhi: 116.58, kt: 0.782 } },
-                    { step: 3, model_id: 'pv_conversion', status: 'success', execution_time: 275, outputs: { p_mp: 312.5, v_mp: 38.2, efficiency: 0.458 } },
-                ],
+            success: true,
+            model: 'pv_diode',
+            panel_id: 3,
+            outputs: {
+                current: 12.81, power: 516.40,
+                voc: 48.23, isc: 11.17,
+                vmpp: 40.31, impp: 12.81,
+                pmpp: 516.40, ff: 0.9587,
             },
+            execution_time_ms: 12.5,
         }, null, 2),
     },
+
+    // ────────────────────────────────────────────────────────────
+    // 分组：组件管理  ★ 新增
+    // ────────────────────────────────────────────────────────────
     {
-        key: 'chain-validate',
-        group: '模型链',
-        method: 'POST',
-        path: '/api/chain/validate',
-        title: '验证模型链配置',
-        description: '在执行前验证模型链配置是否合法，检查各节点模型是否存在、字段映射引用是否有效、输入输出类型是否匹配，不会实际执行模型。',
-        bodyParams: [
-            { name: 'chain', type: 'Array', required: true, desc: '与执行接口相同的模型链节点数组' },
-        ],
-        requestExample: JSON.stringify({
-            chain: [
-                { model_id: 'solar_position', inputs: {} },
-                { model_id: 'perez_separation', inputs: {}, input_mapping: { solar_zenith: 'solar_position.solar_zenith' } },
-            ],
-        }, null, 2),
-        responseExample: JSON.stringify({
-            code: 200,
-            data: {
-                valid: true,
-                errors: [],
-                warnings: ['步骤 2 的 datetime_str 未映射，将使用默认值'],
-            },
-        }, null, 2),
-    },
-    {
-        key: 'chain-templates',
-        group: '模型链',
+        key: 'panel-list',
+        group: '组件管理',
         method: 'GET',
-        path: '/api/chain/templates',
-        title: '获取预置模型链模板',
-        description: '获取平台内置的常用模型链模板，如完整光伏发电量计算链、辐照分析链等，可直接使用或基于模板修改后提交执行。',
+        path: '/api/panels',
+        title: '获取组件列表',
+        description: '分页查询已入库的光伏组件，支持按**厂家**精确筛选和按**型号**模糊搜索。返回字段包含三项温度系数（temp_coeff / mu_voc_spec / mu_pmp）及全部电气参数。',
+        queryParams: [
+            { name: 'manufacturer', type: 'string', required: false, desc: '厂家精确匹配，如 "Canadian Solar"' },
+            { name: 'model_name', type: 'string', required: false, desc: '型号模糊搜索' },
+            { name: 'page', type: 'integer', required: false, desc: '页码，默认 1' },
+            { name: 'page_size', type: 'integer', required: false, desc: '每页条数，默认 100' },
+        ],
         responseExample: JSON.stringify({
-            code: 200,
+            success: true,
+            total: 2,
+            page: 1,
+            page_size: 100,
             data: [
                 {
-                    id: 'full_pv_chain',
-                    name: '完整光伏发电量计算链',
-                    description: '太阳位置 → 辐照分离 → 平面辐照转换 → 温度模型 → 功率转换',
-                    steps: ['solar_position', 'perez_separation', 'poa_irradiance', 'temperature_model', 'pv_conversion'],
-                },
-                {
-                    id: 'irradiance_chain',
-                    name: '辐照分析链',
-                    description: '太阳位置 → 辐照分离 → 平面辐照转换',
-                    steps: ['solar_position', 'perez_separation', 'poa_irradiance'],
+                    id: 1,
+                    filename: 'CS6W-550MS.pan',
+                    manufacturer: 'Canadian Solar',
+                    model_name: 'CS6W-550MS',
+                    is_bifacial: false,
+                    bifacial_factor: 0,
+                    isc: 13.93, voc: 49.3, imp: 13.16, vmp: 41.8,
+                    temp_coeff: 6.22,    // 短路电流温度系数 muISC (mA/℃)
+                    mu_voc_spec: -138.4,  // 开路电压温度系数 muVocSpec (mV/℃)
+                    mu_pmp: -0.35,   // 功率温度系数 muPmpReq (%/℃)
+                    pmp_calc: 550.1, efficiency: 21.2,
+                    length: 2278, width: 1134, thickness: 35, weight: 28.2, area: 2.583,
+                    created_at: '2026-04-24T10:00:00',
                 },
             ],
         }, null, 2),
     },
+    {
+        key: 'panel-manufacturers',
+        group: '组件管理',
+        method: 'GET',
+        path: '/api/panels/manufacturers',
+        title: '获取厂家列表',
+        description: '返回数据库中所有已入库组件的**厂家名称去重列表**，按字母顺序排列，常用于前端下拉筛选框的选项数据源。',
+        responseExample: JSON.stringify({
+            success: true,
+            data: ['Canadian Solar', 'JA Solar', 'LONGi Solar', 'Trina Solar'],
+        }, null, 2),
+    },
+    {
+        key: 'panel-detail',
+        group: '组件管理',
+        method: 'GET',
+        path: '/api/panels/{panel_id}',
+        title: '获取组件详情',
+        description: '根据组件 ID 获取完整信息，在列表字段基础上额外返回三项温度系数及原始 `.pan` 文件文本内容（`raw_content`）。',
+        pathParams: [
+            { name: 'panel_id', type: 'integer', required: true, desc: '组件 ID' },
+        ],
+        responseExample: JSON.stringify({
+            success: true,
+            data: {
+                id: 1,
+                filename: 'CS6W-550MS.pan',
+                manufacturer: 'Canadian Solar',
+                model_name: 'CS6W-550MS',
+                isc: 13.93, voc: 49.3, imp: 13.16, vmp: 41.8,
+                temp_coeff: 6.22,
+                mu_voc_spec: -138.4,
+                mu_pmp: -0.35,
+                g_ref: 1000, t_ref: 25,
+                isc_calc: 13.93, voc_calc: 49.3, imp_calc: 13.16, vmp_calc: 41.8, pmp_calc: 550.1,
+                efficiency: 21.2,
+                length: 2278, width: 1134, thickness: 35, weight: 28.2, area: 2.583,
+                r_series: 0.037, r_shunt: 1000, gamma: 1.255,
+                iam_angles: [0, 20, 40, 60, 70, 80, 85, 90],
+                iam_values: [1.0, 1.0, 0.997, 0.977, 0.947, 0.856, 0.721, 0.0],
+                raw_content: 'PVObject_=pvModule\nVersion=8.4.1\n...',
+                created_at: '2026-04-24T10:00:00',
+                updated_at: null,
+            },
+        }, null, 2),
+    },
+    {
+        key: 'panel-curves',
+        group: '组件管理',
+        method: 'POST',
+        path: '/api/panels/{panel_id}/curves',
+        title: '计算 IV/PV 电学曲线（getCurves）',
+        description: '基于单二极管模型计算组件在不同工况下的 IV 及 PV 曲线。`mode=irradiance` 时固定温度，对多辐照度求解；`mode=temperature` 时固定辐照度，对多温度求解。计算过程使用 `temp_coeff`（muISC）和 `mu_voc_spec`（muVocSpec）两项温度系数。返回的每条曲线含 `voltages`、`currents`、`powers` 三组数据点，可直接用于图表渲染。',
+        pathParams: [
+            { name: 'panel_id', type: 'integer', required: true, desc: '组件 ID' },
+        ],
+        bodyParams: [
+            { name: 'mode', type: 'string', required: false, desc: '"irradiance"（默认）或 "temperature"' },
+            { name: 'irradiances', type: 'number[]', required: false, desc: '辐照度列表 W/m²，mode=irradiance 时生效，默认 [1000,800,600,400,200]' },
+            { name: 'temperatures', type: 'number[]', required: false, desc: '温度列表 ℃，mode=temperature 时生效，默认 [0,10,25,35,45]' },
+            { name: 'base_temp', type: 'number', required: false, desc: '基准温度 ℃，mode=irradiance 时使用，默认 45' },
+            { name: 'base_irradiance', type: 'number', required: false, desc: '基准辐照度 W/m²，mode=temperature 时使用，默认 1000' },
+        ],
+        requestExample: JSON.stringify({
+            mode: 'irradiance',
+            irradiances: [1000, 800, 600, 400, 200],
+            base_temp: 25,
+        }, null, 2),
+        responseExample: JSON.stringify({
+            success: true,
+            mode: 'irradiance',
+            data: [
+                {
+                    label: '1000 W/m²',
+                    voltages: [0, 5.12, 10.24, '...', 49.3],
+                    currents: [13.93, 13.91, 13.87, '...', 0],
+                    powers: [0, 71.2, 141.9, '...', 0],
+                },
+                {
+                    label: '800 W/m²',
+                    voltages: [0, 5.10, '...'],
+                    currents: [11.14, '...'],
+                    powers: [0, '...'],
+                },
+            ],
+        }, null, 2),
+    },
+
+
+    // ────────────────────────────────────────────────────────────
+    // 分组：模型链
+    // ────────────────────────────────────────────────────────────
+    // {
+    //     key: 'chain-run',
+    //     group: '模型链',
+    //     method: 'POST',
+    //     path: '/api/chain/run',
+    //     title: '执行模型链',
+    //     description: '按顺序串联执行多个模型，前一个模型的输出字段可通过 input_mapping 自动映射为下一个模型的输入，最终返回每个节点的执行结果和总耗时。',
+    //     bodyParams: [
+    //         { name: 'chain', type: 'Array', required: true, desc: '模型链节点数组，按执行顺序排列' },
+    //         { name: 'chain[].model_id', type: 'string', required: true, desc: '节点使用的模型 name，必须是已注册的有效模型' },
+    //         { name: 'chain[].inputs', type: 'Object', required: true, desc: '该节点的直接输入参数，无法从上游映射的参数在此提供' },
+    //         { name: 'chain[].input_mapping', type: 'Object', required: false, desc: '字段映射规则，格式：{ "本节点字段": "上游节点ID.输出字段" }' },
+    //         { name: 'chain[].alias', type: 'string', required: false, desc: '节点别名，用于在 input_mapping 中引用，默认使用 model_id' },
+    //         { name: 'chain[].skip_on_error', type: 'boolean', required: false, desc: '当前节点出错时是否跳过继续执行，默认 false' },
+    //     ],
+    //     requestExample: JSON.stringify({
+    //         chain: [
+    //             {
+    //                 model_id: 'solar_position',
+    //                 inputs: { latitude: 39.9042, longitude: 116.4074, datetime_str: '2026-06-21T04:00:00Z' },
+    //             },
+    //             {
+    //                 model_id: 'perez_separation',
+    //                 inputs: { ghi: 800 },
+    //                 input_mapping: {
+    //                     solar_zenith: 'solar_position.solar_zenith',
+    //                     datetime_str: 'solar_position.datetime_str',
+    //                 },
+    //             },
+    //             {
+    //                 model_id: 'pv_conversion',
+    //                 inputs: { temp_air: 25.0 },
+    //                 input_mapping: { poa_irradiance: 'perez_separation.dni' },
+    //             },
+    //         ],
+    //     }, null, 2),
+    //     responseExample: JSON.stringify({
+    //         code: 200,
+    //         data: {
+    //             total_execution_time: 680,
+    //             results: [
+    //                 { step: 1, model_id: 'solar_position', status: 'success', execution_time: 210, outputs: { solar_zenith: 22.48, solar_azimuth: 175.64, solar_elevation: 67.52 } },
+    //                 { step: 2, model_id: 'perez_separation', status: 'success', execution_time: 195, outputs: { dni: 683.42, dhi: 116.58, kt: 0.782 } },
+    //                 { step: 3, model_id: 'pv_conversion', status: 'success', execution_time: 275, outputs: { p_mp: 312.5, v_mp: 38.2, efficiency: 0.458 } },
+    //             ],
+    //         },
+    //     }, null, 2),
+    // },
+    // {
+    //     key: 'chain-validate',
+    //     group: '模型链',
+    //     method: 'POST',
+    //     path: '/api/chain/validate',
+    //     title: '验证模型链配置',
+    //     description: '在执行前验证模型链配置是否合法，检查各节点模型是否存在、字段映射引用是否有效、输入输出类型是否匹配，不会实际执行模型。',
+    //     bodyParams: [
+    //         { name: 'chain', type: 'Array', required: true, desc: '与执行接口相同的模型链节点数组' },
+    //     ],
+    //     requestExample: JSON.stringify({
+    //         chain: [
+    //             { model_id: 'solar_position', inputs: {} },
+    //             { model_id: 'perez_separation', inputs: {}, input_mapping: { solar_zenith: 'solar_position.solar_zenith' } },
+    //         ],
+    //     }, null, 2),
+    //     responseExample: JSON.stringify({
+    //         code: 200,
+    //         data: {
+    //             valid: true,
+    //             errors: [],
+    //             warnings: ['步骤 2 的 datetime_str 未映射，将使用默认值'],
+    //         },
+    //     }, null, 2),
+    // },
+    // {
+    //     key: 'chain-templates',
+    //     group: '模型链',
+    //     method: 'GET',
+    //     path: '/api/chain/templates',
+    //     title: '获取预置模型链模板',
+    //     description: '获取平台内置的常用模型链模板，如完整光伏发电量计算链、辐照分析链等，可直接使用或基于模板修改后提交执行。',
+    //     responseExample: JSON.stringify({
+    //         code: 200,
+    //         data: [
+    //             {
+    //                 id: 'full_pv_chain',
+    //                 name: '完整光伏发电量计算链',
+    //                 description: '太阳位置 → 辐照分离 → 平面辐照转换 → 温度模型 → 功率转换',
+    //                 steps: ['solar_position', 'perez_separation', 'poa_irradiance', 'temperature_model', 'pv_conversion'],
+    //             },
+    //             {
+    //                 id: 'irradiance_chain',
+    //                 name: '辐照分析链',
+    //                 description: '太阳位置 → 辐照分离 → 平面辐照转换',
+    //                 steps: ['solar_position', 'perez_separation', 'poa_irradiance'],
+    //             },
+    //         ],
+    //     }, null, 2),
+    // },
 ]
 
 // ── 按分组聚合 ────────────────────────────────────────────────
@@ -687,6 +1061,7 @@ const groupedApiDocs = computed(() => {
     }
     return groups
 })
+
 
 // ── 动态模型列表导航（单模型运行分组下） ──────────────────────
 const filteredModels = computed(() => {
@@ -1250,5 +1625,103 @@ CodeBlock.emits = ['copy']
     font-size: 13px;
     color: #606878;
     line-height: 1.5;
+}
+
+.method-tag.workflow {
+    background: #f0f4ff;
+    color: #6d28d9;
+}
+
+/* WORKFLOW 三步流程卡片 */
+.workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.workflow-step-card {
+    border: 1px solid #e4e7ed;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e4e7ed;
+}
+
+.step-badge {
+    font-size: 11px;
+    font-weight: 700;
+    background: #2563eb;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+}
+
+.step-method-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.step-method-tag.get {
+    background: #e6f4ea;
+    color: #1e7e34;
+}
+
+.step-method-tag.post {
+    background: #e8f0fe;
+    color: #1a56db;
+}
+
+.step-path {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a2332;
+    background: transparent;
+}
+
+.step-desc-inline {
+    font-size: 13px;
+    color: #64748b;
+    margin-left: 4px;
+}
+
+.step-body {
+    padding: 16px 18px;
+}
+
+.step-note {
+    font-size: 13px;
+    color: #4a5568;
+    margin: 0 0 12px;
+    line-height: 1.7;
+}
+
+.step-example {
+    margin-top: 14px;
+}
+
+.step-example-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #909399;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* WORKFLOW 导航标签颜色 */
+.method-tag.workflow {
+    background: #f3f0ff;
+    color: #6d28d9;
 }
 </style>

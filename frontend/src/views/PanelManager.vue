@@ -57,6 +57,7 @@
       stripe
       class="panel-table"
     >
+      <el-table-column prop="id" label="ID"  width="60" align="center"/>
       <el-table-column prop="manufacturer" label="厂家"  />
       <el-table-column prop="model_name"   label="型号" />
       <el-table-column  label="尺寸" width="250">
@@ -70,11 +71,11 @@
       </el-table-column>
       <el-table-column prop="imp_calc"     label="最大功率点电流（A）">
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
-          <el-tooltip content="编辑详情" placement="top">
+          <el-tooltip content="查看详情" placement="top">
             <el-button
-              :icon="Edit"
+              :icon="View"
               circle
               size="small"
               @click="openDetail(row)"
@@ -127,7 +128,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Download } from '@element-plus/icons-vue'
+import { View, Download } from '@element-plus/icons-vue'
 import { panelApi } from '@/api/panel'
 import PanelDetail from '@/components/PanelDetail.vue'
 

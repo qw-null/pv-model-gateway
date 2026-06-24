@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models import ModelRecord, ExecutionLog
 from db.panel import PVPanel  # 新增导入
+from db.inverter import Inverter
+
 from core.registry import registry
 from core.executor import safe_execute
 
@@ -40,12 +42,35 @@ def _sanitize_for_json(obj):
     return obj
 
 
+# backend/api/execute_routes.py
+# 在文件顶部已有 from db.panel import PVPanel
+
 @router.post("/pv_diode", summary="光伏组件二极管模型")
 async def run_pv_diode(body: dict, db: Session = Depends(get_db)):
     """
-    前端传入完整参数（isc/voc/imp/vmp/temp_coeff/g_ref/t_ref/g_poa/t_cell），
-    panel_id 为可选，仅用于日志追踪。
+    支持两种调用方式：
+    方式一：传入 panel_id + g_poa + t_cell，后端自动从组件库补全电学参数
+    方式二：传入完整参数（isc/voc/imp/vmp/temp_coeff/g_ref/t_ref/g_poa/t_cell）
+    panel_id 在两种方式下均可选，用于日志追踪。
     """
+    # ── 方式一：panel_id 自动补全 ──────────────────────────────
+    panel_id = body.get("panel_id")
+    if panel_id:
+        panel = db.query(PVPanel).filter(PVPanel.id == int(panel_id)).first()
+        if not panel:
+            raise HTTPException(status_code=404, detail=f"组件 ID={panel_id} 不存在")
+        # 将组件字段注入 body（前端未传的才补全，已传的保留）
+        panel_fields = {
+            "isc": panel.isc, "voc": panel.voc,
+            "imp": panel.imp, "vmp": panel.vmp,
+            "temp_coeff": panel.temp_coeff,
+            "g_ref": panel.g_ref, "t_ref": panel.t_ref,
+        }
+        for k, v in panel_fields.items():
+            if k not in body and v is not None:
+                body[k] = v
+
+    # ── 参数完整性校验 ─────────────────────────────────────────
     required = ["isc", "voc", "imp", "vmp", "temp_coeff", "g_ref", "t_ref", "g_poa", "t_cell"]
     missing = [f for f in required if f not in body]
     if missing:
@@ -68,7 +93,77 @@ async def run_pv_diode(body: dict, db: Session = Depends(get_db)):
     return {
         "success": True,
         "model": "pv_diode",
+        "panel_id": panel_id,
         "outputs": safe_outputs,
+        "execution_time_ms": elapsed_ms,
+    }
+
+
+
+
+@router.post("/inverter_from_ond", summary="逆变器模型（OND 数据库驱动）")
+async def run_inverter_from_ond(body: dict, db: Session = Depends(get_db)):
+    """
+    支持两种调用方式：
+    方式一：传入 inverter_id + p_dc，后端自动从逆变器数据库补全 Sandia 参数
+    方式二：传入完整参数（p_aco / p_dco / p_so / c_o / p_dc）
+    inverter_id 在两种方式下均可选，用于日志追踪。
+    """
+    # ── 方式一：inverter_id 自动补全 Sandia 参数 ──────────────
+    inverter_id = body.get("inverter_id")
+    if inverter_id:
+        inv = db.query(Inverter).filter(
+            Inverter.id == int(inverter_id)
+        ).first()
+        if not inv:
+            raise HTTPException(
+                status_code=404,
+                detail=f"逆变器 ID={inverter_id} 不存在"
+            )
+        # 仅补全缺失字段，已传入的保留
+        inverter_fields = {
+            "p_aco": inv.p_aco,
+            "p_dco": inv.p_dco,
+            "p_so":  inv.p_so,
+            "c_o":   inv.c_o,
+        }
+        for k, v in inverter_fields.items():
+            if k not in body and v is not None and v != 0.0:
+                body[k] = v
+
+    # ── 参数完整性校验 ────────────────────────────────────────
+    required = ["p_aco", "p_dco", "p_so", "c_o", "p_dc"]
+    missing  = [f for f in required if f not in body]
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "缺少必填参数", "errors": missing}
+        )
+
+    entry = registry.get("inverter_from_ond")
+    if not entry:
+        raise HTTPException(
+            status_code=404,
+            detail="模型 inverter_from_ond 未注册"
+        )
+
+    try:
+        outputs, elapsed_ms = await safe_execute(
+            entry["model_path"], body, timeout=10
+        )
+    except (TimeoutError, RuntimeError) as e:
+        _log_execution(db, "inverter_from_ond", body, None, False, str(e), 0)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    safe_outputs = _sanitize_for_json(outputs)
+    _log_execution(db, "inverter_from_ond", body, safe_outputs, True, None, elapsed_ms)
+    _update_call_count(db, "inverter_from_ond")
+
+    return {
+        "success":          True,
+        "model":            "inverter_from_ond",
+        "inverter_id":      inverter_id,
+        "outputs":          safe_outputs,
         "execution_time_ms": elapsed_ms,
     }
 

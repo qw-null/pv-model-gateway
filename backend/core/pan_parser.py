@@ -5,7 +5,6 @@
 """
 import re
 
-
 def _get(content: str, key: str, default=None):
     """提取 key=value 格式的字段值（精确匹配行首）"""
     pattern = rf"(?m)^\s*{re.escape(key)}\s*=\s*(.+)$"
@@ -14,7 +13,6 @@ def _get(content: str, key: str, default=None):
         return match.group(1).strip().strip('"').strip("'")
     return default
 
-
 def _get_float(content: str, key: str, default: float = 0.0) -> float:
     val = _get(content, key)
     try:
@@ -22,11 +20,9 @@ def _get_float(content: str, key: str, default: float = 0.0) -> float:
     except (ValueError, TypeError):
         return default
 
-
 def _get_str(content: str, key: str, default: str = "") -> str:
     val = _get(content, key, default)
     return str(val).strip() if val else default
-
 
 def _parse_iam(content: str) -> tuple:
     """
@@ -39,7 +35,6 @@ def _parse_iam(content: str) -> tuple:
     """
     angles, values = [], []
 
-    # 提取 TCubicProfile 块
     block_match = re.search(
         r"IAMProfile=TCubicProfile(.+?)End of TCubicProfile",
         content,
@@ -49,15 +44,12 @@ def _parse_iam(content: str) -> tuple:
         return angles, values
 
     block = block_match.group(1)
-
-    # 提取所有 Point_N=angle,value
     points = re.findall(r"Point_\d+=\s*([\d.]+)\s*,\s*([\d.]+)", block)
     for angle_str, value_str in points:
         angles.append(float(angle_str))
         values.append(float(value_str))
 
     return angles, values
-
 
 def parse_pan(content: str) -> dict:
     """
@@ -79,15 +71,22 @@ def parse_pan(content: str) -> dict:
     # ── 制造商规格 ─────────────────────────────────────────────
     isc        = _get_float(content, "Isc")
     voc        = _get_float(content, "Voc")
-    imp        = _get_float(content, "Imp")     # 真实 key 是 Imp
-    vmp        = _get_float(content, "Vmp")     # 真实 key 是 Vmp
-    temp_coeff = _get_float(content, "muISC")   # mA/℃
+    imp        = _get_float(content, "Imp")
+    vmp        = _get_float(content, "Vmp")
+
+    # ── 温度系数（三项）────────────────────────────────────────
+    # 短路电流温度系数：muISC，单位 mA/℃
+    temp_coeff  = _get_float(content, "muISC", 0.0)
+    # 开路电压温度系数：muVocSpec，单位 mV/℃
+    mu_voc_spec = _get_float(content, "muVocSpec", -92.5)
+    # ★ 新增 — 功率温度系数：muPmpReq，单位 %/℃
+    mu_pmp      = _get_float(content, "muPmpReq", 0.0)
 
     # ── 单二极管模型运行条件 ────────────────────────────────────
     g_ref = _get_float(content, "GRef", 1000.0)
     t_ref = _get_float(content, "TRef", 25.0)
 
-    # 从 OperPoints 中提取 STC 工作点（Point_6 为 True 的行）
+    # 从 OperPoints 中提取 STC 工作点（Point_N 为 True 的行）
     # 格式：True,1000,25.0,0.00,Voc,Isc,Imp,Vmp,Pmp
     stc_match = re.search(
         r"Point_\d+=True,[\d.]+,[\d.]+,[\d.\-]+,"
@@ -101,7 +100,6 @@ def parse_pan(content: str) -> dict:
         vmp_calc = float(stc_match.group(4))
         pmp_calc = float(stc_match.group(5))
     else:
-        # 兜底：直接使用制造商规格
         isc_calc = isc
         voc_calc = voc
         imp_calc = imp
@@ -109,16 +107,15 @@ def parse_pan(content: str) -> dict:
         pmp_calc = round(imp * vmp, 4)
 
     # ── 尺寸（PVsyst 原始单位：米）────────────────────────────
-    # Height = 长边（长度），Width = 短边（宽度），Depth = 厚度
-    height_m    = _get_float(content, "Height")   # 长边，单位 m
-    width_m     = _get_float(content, "Width")    # 短边，单位 m
-    depth_m     = _get_float(content, "Depth")    # 厚度，单位 m
+    height_m     = _get_float(content, "Height")
+    width_m      = _get_float(content, "Width")
+    depth_m      = _get_float(content, "Depth")
 
-    length_mm   = round(height_m * 1000, 1)       # → mm
-    width_mm    = round(width_m  * 1000, 1)       # → mm
-    thickness_mm = round(depth_m * 1000, 1)       # → mm
-    weight_kg   = _get_float(content, "Weight")
-    area_m2     = round(height_m * width_m, 6)    # m²
+    length_mm    = round(height_m * 1000, 1)
+    width_mm     = round(width_m  * 1000, 1)
+    thickness_mm = round(depth_m  * 1000, 1)
+    weight_kg    = _get_float(content, "Weight")
+    area_m2      = round(height_m * width_m, 6)
 
     # ── 组件效率 ───────────────────────────────────────────────
     efficiency = 0.0
@@ -138,7 +135,11 @@ def parse_pan(content: str) -> dict:
         "voc":             voc,
         "imp":             imp,
         "vmp":             vmp,
-        "temp_coeff":      temp_coeff,
+
+        # ── 三项温度系数 ──────────────────────────────────────
+        "temp_coeff":      temp_coeff,    # 短路电流温度系数 muISC (mA/℃)
+        "mu_voc_spec":     mu_voc_spec,   # 开路电压温度系数 muVocSpec (mV/℃)
+        "mu_pmp":          mu_pmp,        # 功率温度系数 muPmpReq (%/℃)  ★新增
 
         "g_ref":           g_ref,
         "t_ref":           t_ref,
@@ -158,9 +159,7 @@ def parse_pan(content: str) -> dict:
         "iam_angles":      iam_angles,
         "iam_values":      iam_values,
 
-        "r_series":     _get_float(content, "RSerie",  0.037),
-        "r_shunt":      _get_float(content, "RShunt",  1000.0),
-        "gamma":        _get_float(content, "Gamma",   1.255),
-        "mu_voc_spec":  _get_float(content, "muVocSpec", -92.5),
-
+        "r_series":        _get_float(content, "RSerie",   0.037),
+        "r_shunt":         _get_float(content, "RShunt",   1000.0),
+        "gamma":           _get_float(content, "Gamma",    1.255),
     }

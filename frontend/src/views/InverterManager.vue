@@ -81,9 +81,9 @@
       </el-table-column>
       <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
-          <el-tooltip content="编辑详情" placement="top">
+          <el-tooltip content="查看详情" placement="top">
             <el-button
-              :icon="Edit"
+              :icon="View"
               circle
               size="small"
               @click="openDetail(row)"
@@ -128,7 +128,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Download } from '@element-plus/icons-vue'
+import { Edit, Download, View } from '@element-plus/icons-vue'
 import { inverterApi } from '@/api/inverter'
 import InverterDetail from '@/components/InverterDetail.vue'
 
@@ -230,9 +230,15 @@ async function handleDownload(row) {
 }
 
 // ── 打开详情 ──────────────────────────────────────────────────
-function openDetail(row) {
-  currentInverter.value = { ...row }
-  drawerVisible.value   = true
+async function openDetail(row) {
+  try {
+    const res = await inverterApi.get(row.id)
+    currentInverter.value = res.data?.data ?? res.data
+  } catch {
+    ElMessage.error('获取详情失败')
+    return
+  }
+  drawerVisible.value = true
 }
 
 // ── 更新回调 ──────────────────────────────────────────────────

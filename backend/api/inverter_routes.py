@@ -37,31 +37,36 @@ class InverterUpdateRequest(BaseModel):
     temp_derating_limit: Optional[float] = None
     efficiency_curves:   Optional[dict]  = None
 
-
 def _to_dict(inv: Inverter, include_raw: bool = False) -> dict:
     result = {
-        "id":                  inv.id,
-        "filename":            inv.filename,
-        "manufacturer":        inv.manufacturer,
-        "model_name":          inv.model_name,
-        "vmp_min":             inv.vmp_min,
-        "vmp_nom":             inv.vmp_nom,
-        "vmp_max":             inv.vmp_max,
-        "vdc_max":             inv.vdc_max,
-        "vac_out":             inv.vac_out,
-        "pac_nom":             inv.pac_nom,
-        "pac_max":             inv.pac_max,
-        "iac_nom":             inv.iac_nom,
-        "iac_max":             inv.iac_max,
-        "efficiency":          inv.efficiency,
-        "efficiency_curves":   inv.efficiency_curves or {},
-        "temp_pac_nom":        inv.temp_pac_nom,
-        "temp_pac_max":        inv.temp_pac_max,
-        "temp_derating":       inv.temp_derating,
-        "pac_derating":        inv.pac_derating,
-        "temp_derating_limit": inv.temp_derating_limit,
-        "created_at":          str(inv.created_at) if inv.created_at else None,
-        "updated_at":          str(inv.updated_at) if inv.updated_at else None,
+        "id":           inv.id,
+        "filename":     inv.filename,
+        "manufacturer": inv.manufacturer,
+        "model_name":   inv.model_name,
+        "vmp_min":      inv.vmp_min,
+        "vmp_nom":      inv.vmp_nom,
+        "vmp_max":      inv.vmp_max,
+        "vdc_max":      inv.vdc_max,
+        "vac_out":      inv.vac_out,
+        "pac_nom":      inv.pac_nom,
+        "pac_max":      inv.pac_max,
+        "iac_nom":      inv.iac_nom,
+        "iac_max":      inv.iac_max,
+        "efficiency":   inv.efficiency,
+        "efficiency_curves":    inv.efficiency_curves or {},
+        "temp_pac_nom":         inv.temp_pac_nom,
+        "temp_pac_max":         inv.temp_pac_max,
+        "temp_derating":        inv.temp_derating,
+        "pac_derating":         inv.pac_derating,
+        "temp_derating_limit":  inv.temp_derating_limit,
+        # ── 新增：Sandia 拟合参数 ──────────────────────────────
+        "p_aco": inv.p_aco,
+        "p_dco": inv.p_dco,
+        "p_so":  inv.p_so,
+        "c_o":   inv.c_o,
+        # ──────────────────────────────────────────────────────
+        "created_at": str(inv.created_at) if inv.created_at else None,
+        "updated_at": str(inv.updated_at) if inv.updated_at else None,
     }
     if include_raw:
         result["raw_content"] = inv.raw_content
